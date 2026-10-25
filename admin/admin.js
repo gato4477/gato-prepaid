@@ -1,14 +1,17 @@
-const $=id=>document.getElementById(id);let changed=false;
-function slugify(s){return s.toLowerCase().trim().replace(/[^a-z0-9가-힣-]+/g,'-').replace(/^-|-$/g,'').slice(0,70)||'post'}
-$('title').addEventListener('input',()=>{if(!changed)$('slug').value=slugify($('title').value)});
-$('slug').addEventListener('input',()=>changed=true);
+const $=id=>document.getElementById(id);
+const clean=html=>DOMPurify.sanitize(html,{FORBID_TAGS:['script','iframe','object','embed','form','input','button','style','link','meta','base','svg','math'],FORBID_ATTR:['srcdoc'],ALLOW_DATA_ATTR:false});
+const CHO='g kk n d tt r m b pp s ss ng j jj ch k t p h'.split(' '),JUNG='a ae ya yae eo e yeo ye o wa wae oe yo u wo we wi yu eu ui i'.split(' '),JONG=' g kk gs n nj nh d l lg lm lb ls lt lp lh m b bs s ss ng j ch k t p h'.split(' ');
+function romanize(s){return [...s.toLowerCase()].map(ch=>{let n=ch.charCodeAt(0)-44032;if(n>=0&&n<11172)return CHO[Math.floor(n/588)]+JUNG[Math.floor(n%588/28)]+JONG[n%28];return ch}).join('').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,75)||'post'}
+let manualSlug=false,tab='visual';
+$('title').addEventListener('input',()=>{if(!manualSlug)$('slug').value=romanize($('title').value)});
+$('slug').addEventListener('input',()=>{manualSlug=true});
+function switchTab(next){if(tab==='html'&&next!=='html')$('editor').innerHTML=clean($('html').value);if(tab==='visual'&&next!=='visual')$('html').value=$('editor').innerHTML;if(next==='preview')$('preview').innerHTML=clean(tab==='html'?$('html').value:$('editor').innerHTML);tab=next;['visual','html','preview'].forEach(t=>$(t+'-pane').classList.toggle('hidden',t!==next));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===next))}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+document.querySelectorAll('[data-cmd]').forEach(b=>b.onclick=()=>{switchTab('visual');$('editor').focus();document.execCommand(b.dataset.cmd,false,null)});
+$('block').onchange=e=>{switchTab('visual');$('editor').focus();document.execCommand('formatBlock',false,e.target.value)};
+$('link-btn').onclick=()=>{const url=prompt('연결할 주소를 입력하세요 (https://...)');if(url&&/^https?:\/\//i.test(url)){$('editor').focus();document.execCommand('createLink',false,url)}};
+$('image-btn').onclick=()=>{const name=prompt('업로드할 이미지 파일명 (예: photo1.jpg)');if(name){$('editor').focus();document.execCommand('insertHTML',false,`<img src="${name.replace(/["<>]/g,'')}" alt="">`)}};
+$('html').addEventListener('input',()=>{});
 const toBase64=file=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=reject;r.readAsDataURL(file)});
-$('submit').onclick=async()=>{const btn=$('submit'),msg=$('msg');btn.disabled=true;msg.textContent='저장 중입니다. 창을 닫지 마세요.';try{
-const title=$('title').value.trim(),slug=slugify($('slug').value),html=$('html').value.trim(),password=$('password').value;
-if(!title||!html||!password)throw Error('비밀번호, 제목, HTML 소스를 입력하세요.');
-const files=[...$('images').files];if($('cover').files[0])files.push($('cover').files[0]);
-if(files.length>25)throw Error('이미지는 한 번에 25장 이하로 선택해 주세요.');
-const images=[];for(const file of files){if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type))throw Error('JPG, PNG, WEBP, GIF만 가능합니다.');if(file.size>4*1024*1024)throw Error(file.name+' 파일은 4MB 이하여야 합니다.');images.push({name:file.name,content:await toBase64(file),type:file.type});}
-const safe=DOMPurify.sanitize(html,{FORBID_TAGS:['script','iframe','object','embed','form','input','button','style','link','meta','base','svg','math'],FORBID_ATTR:['srcdoc'],ALLOW_DATA_ATTR:false});
-const res=await fetch('/.netlify/functions/blog-publish',{method:'POST',headers:{'content-type':'application/json','x-admin-password':password},body:JSON.stringify({title,slug,summary:$('summary').value.trim(),html:safe,published:$('published').checked,images,coverName:$('cover').files[0]?.name||null})});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||'저장 오류 '+res.status);msg.textContent='저장 완료! GitHub에 반영됐습니다. Netlify 배포가 끝나면 블로그에서 확인할 수 있어요.';if(data.url)msg.textContent+='\n글 주소: '+location.origin+data.url;
-}catch(e){msg.textContent='저장 실패: '+e.message}finally{btn.disabled=false}};
+async function publish(asNotice=false){const btn=$('submit'),msg=$('msg');btn.disabled=true;msg.textContent='저장 중입니다. 창을 닫지 마세요.';try{const title=$('title').value.trim(),slug=romanize($('slug').value||title),html=clean((tab==='html'?$('html').value:$('editor').innerHTML).trim()),password=$('password').value;if(!title||!html||!password)throw Error('비밀번호, 제목, 본문을 입력하세요.');const files=[...$('images').files];if($('cover').files[0])files.push($('cover').files[0]);if(files.length>25)throw Error('이미지는 한 번에 25장 이하로 선택해 주세요.');const images=[];for(const file of files){if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type))throw Error('JPG, PNG, WEBP, GIF만 가능합니다.');if(file.size>4*1024*1024)throw Error(file.name+' 파일은 4MB 이하여야 합니다.');images.push({name:file.name,content:await toBase64(file),type:file.type})}const res=await fetch('/.netlify/functions/blog-publish',{method:'POST',headers:{'content-type':'application/json','x-admin-password':password},body:JSON.stringify({title,slug,summary:$('summary').value.trim(),html,published:$('published').checked,images,coverName:$('cover').files[0]?.name||null,notice:asNotice})});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||'저장 오류 '+res.status);msg.textContent='저장 완료! Netlify 배포 후 블로그에서 확인할 수 있어요.'+(data.url?'\n글 주소: '+location.origin+data.url:'');if(asNotice)msg.textContent+='\n※ 공지 고정은 서버에서 notice 항목을 지원해야 적용됩니다.'}catch(e){msg.textContent='저장 실패: '+e.message}finally{btn.disabled=false}}
+$('submit').onclick=()=>publish(false);$('notice').onclick=()=>publish(true);$('reset').onclick=()=>{if(confirm('작성 중인 내용을 초기화할까요?')){['title','slug','summary','html'].forEach(x=>$(x).value='');$('editor').innerHTML='';$('preview').innerHTML='';manualSlug=false;switchTab('visual')}};
