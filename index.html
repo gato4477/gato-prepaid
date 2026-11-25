@@ -316,6 +316,65 @@ body{color:#1E3A5F!important;background:#FFFFFF!important}
 <a class="contact-icon contact-chat" href="https://pf.kakao.com/_GATO4477" target="_blank" rel="noopener" aria-label="카카오톡 채널 가토" data-tip="카카오톡 채널" title="카카오톡 채널"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5c0 4.1-3.8 7.5-8.5 7.5-1 0-2-.15-2.9-.46L4 20l1.4-4.2A7 7 0 0 1 3.5 11.5C3.5 7.4 7.3 4 12 4s8.5 3.4 8.5 7.5Z"/><path d="M8.5 11.5h7"/></svg></a>
 </nav></header>
 <section class="hero" id="top"><div class="eyebrow"></div><h1>선불폰 개통,<br/><span class="hero-accent">생각보다 쉬워요!</span></h1><p>지금 상황에 맞는 방법을 바로 알려드릴게요.</p></section>
+<!-- Gato eligibility check: independent of activation flow -->
+<div id="gatoEligibilityBar"><button type="button" id="gatoEligibilityOpen" aria-haspopup="dialog"><span aria-hidden="true">✓</span> 선불폰 개통 가능 여부 확인하기 <span aria-hidden="true" class="ge-arrow">›</span></button></div>
+<dialog id="gatoEligibilityDialog" aria-labelledby="geTitle">
+<div class="ge-head"><h2 id="geTitle">선불폰 개통 가능 여부</h2><button type="button" id="geClose" aria-label="닫기">×</button></div>
+<p class="ge-hint">현재 휴대폰 상태를 선택해 주세요.</p>
+<fieldset id="geStatus"><legend class="sr-only">현재 휴대폰 상태</legend>
+<label><input type="radio" name="geStatus" value="0"> 정상 이용 중</label><label><input type="radio" name="geStatus" value="1"> 정지 상태</label><label><input type="radio" name="geStatus" value="2"> 직권해지</label><label><input type="radio" name="geStatus" value="3"> 스패머 등록</label>
+</fieldset>
+<fieldset id="geCarrier" hidden><legend>기존 이용 통신망</legend><label><input type="radio" name="geCarrier" value="KT"> KT</label><label><input type="radio" name="geCarrier" value="LG U+"> LG U+</label><label><input type="radio" name="geCarrier" value="SKT"> SKT</label></fieldset>
+<div id="geResult" aria-live="polite" hidden></div>
+<button type="button" id="geDone" hidden>확인 완료</button>
+</dialog>
+<style>
+#gatoEligibilityBar{padding:16px 22px 0;background:#fff}
+#gatoEligibilityOpen{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;border:1px solid #c8e7f8;border-radius:12px;background:#f2faff;color:#24658b;font-weight:700;font-size:14px;text-align:left;line-height:1.5}
+#gatoEligibilityOpen .ge-arrow{margin-left:auto;font-size:22px;line-height:1}
+#gatoEligibilityDialog{box-sizing:border-box;width:min(480px,calc(100% - 32px));max-height:85vh;max-height:85dvh;overflow:auto;border:1px solid #dbeaf5;border-radius:22px;padding:22px;background:white;color:#20364a;box-shadow:0 15px 60px #173f5933}
+#gatoEligibilityDialog::backdrop{background:#142c4680}
+#gatoEligibilityDialog [hidden]{display:none!important}
+#gatoEligibilityDialog .ge-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#gatoEligibilityDialog h2{font-size:20px;margin:0;line-height:1.4}
+#geClose{border:0;background:transparent;color:#61768a;font-size:28px;line-height:1;padding:5px 8px}
+#gatoEligibilityDialog .ge-hint{font-size:14px;color:#61768a;margin:12px 0}
+#gatoEligibilityDialog fieldset{border:0;padding:0;margin:0 0 14px;min-width:0}
+#gatoEligibilityDialog legend{font-weight:700;font-size:14px;margin-bottom:8px}
+#gatoEligibilityDialog label{display:flex;align-items:center;gap:9px;padding:10px 12px;margin:5px 0;border:1px solid #dbeaf5;border-radius:10px;cursor:pointer;font-size:14px}
+#gatoEligibilityDialog label:has(input:checked){border-color:#49a9de;background:#f2faff}
+#gatoEligibilityDialog input{accent-color:#2186bb;margin:0}
+#geCarrier label{display:inline-flex;margin-right:5px}
+#geResult{border-top:1px solid #dbeaf5;padding-top:14px;font-size:14px}
+#geResult .ge-networks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+#geResult .ge-net{border:1px solid #dbeaf5;border-radius:12px;padding:12px;text-align:center}
+#geResult .ge-ok{color:#20815b;font-weight:700}#geResult .ge-no{color:#b93838;font-weight:700}
+#geResult small{display:block;color:#61768a;line-height:1.5}
+#geDone{width:100%;border:0;border-radius:10px;background:#69c7fc;color:#173f59;font-weight:700;padding:12px;margin-top:14px}
+@media(min-width:900px){#gatoEligibilityBar{padding:20px 58px 0}}
+@media(max-width:600px){#gatoEligibilityDialog{margin:auto auto 0;width:100%;max-width:none;border-radius:22px 22px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));}}
+</style>
+<script>
+(function(){
+const dialog=document.getElementById('gatoEligibilityDialog'),open=document.getElementById('gatoEligibilityOpen'),carrier=document.getElementById('geCarrier'),result=document.getElementById('geResult'),done=document.getElementById('geDone');
+function render(){
+const status=dialog.querySelector('input[name="geStatus"]:checked')?.value;
+const net=dialog.querySelector('input[name="geCarrier"]:checked')?.value;
+carrier.hidden=status!=='1';
+result.hidden=done.hidden=status===undefined||(status==='1'&&!net);
+if(result.hidden){result.innerHTML='';return;}
+const spam=status==='3',ktRestricted=status==='1'&&net==='KT';
+const card=(name,ok)=>'<div class="ge-net"><strong>'+name+'</strong><br><span class="'+(ok?'ge-ok':'ge-no')+'">'+(ok?'✓ 개통 가능':spam?'개통 제한':'이용 제한')+'</span></div>';
+let note=spam?'스패머 등록일로부터 1년 경과 후 개통 가능 여부를 다시 확인해 주세요.':ktRestricted?'KT 정지 단말기는 KT 유심 인식이 제한될 수 있어 LG망으로 진행해 주세요.':status==='2'?'직권해지 상태에서도 새로운 번호로 선불폰 신규 개통을 진행할 수 있습니다.':'KT망과 LG망 모두 선불폰 신규 개통을 진행할 수 있습니다.';
+result.innerHTML='<strong>확인 결과</strong><div class="ge-networks">'+card('KT망',!spam&&!ktRestricted)+card('LG망',!spam)+'</div><p>'+note+'</p><small>예상 안내이며 실제 개통 여부는 명의, 본인확인 및 단말기 상태에 따라 달라질 수 있습니다.</small>';
+}
+open.addEventListener('click',()=>{dialog.querySelectorAll('input').forEach(x=>x.checked=false);render();dialog.showModal();});
+dialog.addEventListener('change',e=>{if(e.target.name==='geStatus')carrier.querySelectorAll('input').forEach(x=>x.checked=false);render();});
+document.getElementById('geClose').addEventListener('click',()=>dialog.close());
+done.addEventListener('click',()=>dialog.close());
+dialog.addEventListener('click',e=>{if(e.target===dialog){const b=dialog.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)dialog.close();}});
+})();
+</script>
 <section class="section" id="activation"><span class="tag">01 · 개통 안내</span><h2>선불폰 개통하기</h2><p class="sub">인증서와 유심 준비 상태 먼저 확인해요.</p><div class="panel" id="activationApp"></div></section>
 <section class="section" id="finder"><span class="tag">02 · 요금제 찾기</span><h2>나에게 맞는 요금제</h2><p class="sub">전화·문자 사용량과 데이터 이용 습관에 맞춰 요금제를 비교해 보세요.</p><div class="panel" id="planApp"></div></section>
 <section class="section faq" id="faq"><span class="tag">03 · 도움말</span><div class="faq-heading"><h2>자주 묻는 질문</h2><a class="faq-more" href="faq/index.html">더보기 +</a></div><p class="sub">궁금한 내용을 검색하거나 질문을 눌러 자세히 확인하세요.</p><label class="sr-only" for="faq-search">자주 묻는 질문 검색</label><input autocomplete="off" class="faq-search" id="faq-search" placeholder="예: 유심, 정지, 충전, 로밍" type="search"/><div class="faq-list" id="faq-list"></div><p class="faq-empty" hidden="" id="faq-empty">검색 결과가 없습니다. 다른 단어로 검색해 보세요.</p></section>
